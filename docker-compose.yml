@@ -1,0 +1,24 @@
+version: "3"
+services:
+  app:
+    image: microservice-go
+    container_name: go-app
+    build:
+      context: .
+      target: production
+    ports:
+      - "8080:8080"
+    network_mode: "host"
+    depends_on:
+      - database
+
+  database:
+    image: mariadb:latest
+    container_name: mariadb
+    environment:
+      - MARIADB_DATABASE=${DB_NAME}
+      - MARIADB_USER=${DB_USER}
+      - MARIADB_PASSWORD=${DB_PASSWORD}
+      - MARIADB_ROOT_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "3306:3306"

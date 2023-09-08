@@ -1,4 +1,4 @@
-package main
+package database
 
 import (
 	"database/sql"
@@ -8,11 +8,11 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-var db *sql.DB
+var Query *sql.DB
 
-func database() {
+func Connection() {
 	var err error
-	db, err = sql.Open("mysql", os.Getenv("DATABASE"))
+	Query, err = sql.Open("mysql", os.Getenv("DATABASE"))
 
 	if err != nil {
 		fmt.Println("Failed to connect to database:", err)

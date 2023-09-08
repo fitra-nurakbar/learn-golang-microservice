@@ -1,8 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"microservice/database"
 	"net/http"
 	"time"
 
@@ -34,7 +36,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("INSERT INTO users (username, password) VALUES (?, ?)", user.Username, hashedPassword)
+	_, err = database.Query.Exec("INSERT INTO users (username, password) VALUES (?, ?)", user.Username, hashedPassword)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -57,7 +59,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var storedPassword string
-	err = db.QueryRow("SELECT password FROM users WHERE username = ?", user.Username).Scan(&storedPassword)
+	err = database.Query.QueryRow("SELECT password FROM users WHERE username = ?", user.Username).Scan(&storedPassword)
 	if err != nil {
 		http.Error(w, "Username or password is incorrect", http.StatusUnauthorized)
 		return
@@ -93,4 +95,70 @@ func getAllUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Mengambil semua pengguna dari basis data
+	rows, err := database.Query.Query("SELECT id, username FROM users")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var user User
+		err := rows.Scan(&user.ID, &user.Username)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		users = append(users, user)
+	}
+
+	// Mengirimkan pengguna sebagai respons JSON
+	jsonResponse, err := json.Marshal(users)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonResponse)
+}
+
+func getUserWithID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Mendapatkan ID pengguna dari URL
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "Missing user ID", http.StatusBadRequest)
+		return
+	}
+
+	// Mengambil pengguna dari basis data berdasarkan ID
+	var user User
+	err := database.Query.QueryRow("SELECT id, username FROM users WHERE id = ?", id).Scan(&user.ID, &user.Username)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "User not found", http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Mengirimkan pengguna sebagai respons JSON
+	jsonResponse, err := json.Marshal(user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonResponse)
 }
